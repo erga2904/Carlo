@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediksi Harga Kopi Robusta | Monte Carlo</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loader" class="loader-overlay hidden">
+        <div class="loader-content">
+            <div class="spinner"></div>
+            <p>Memproses Prediksi Harga...</p>
+        </div>
+    </div>
+
+    <!-- MODAL (POP UP) PENJELASAN -->
+    <div id="infoModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>📖 Panduan & Glosarium</h3>
+                <button onclick="closeModal()" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="guide-item">
+                    <h4>1. Distribusi Probabilitas</h4>
+                    <p>Menganalisis pola harga masa lalu untuk menentukan peluang di masa depan.</p>
+                    <ul>
+                        <li><strong>Frekuensi:</strong> Jumlah kemunculan harga tertentu dalam dataset.</li>
+                        <li><strong>Probabilitas (P):</strong> Peluang harga tersebut muncul (Frekuensi ÷ Total Data).</li>
+                        <li><strong>Kumulatif:</strong> Penjumlahan bertahap dari probabilitas.</li>
+                        <li><strong>Interval:</strong> Rentang angka "undian" (0-99). Jika Angka Acak jatuh di rentang ini, harga tersebut yang terpilih.</li>
+                    </ul>
+                </div>
+                
+                <div class="guide-item">
+                    <h4>2. Simulasi Monte Carlo</h4>
+                    <p>Melakukan simulasi ketidakpastian pasar.</p>
+                    <ul>
+                        <li><strong>Angka Acak:</strong> Angka random (0-99) yang dibangkitkan sistem, mengumpamakan faktor tak terduga (cuaca, panen, permintaan).</li>
+                        <li><strong>Prediksi:</strong> Hasil pencocokan Angka Acak dengan Interval harga.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- HEADER -->
+        <header class="dashboard-header fade-in">
+            <div class="header-content">
+                <span class="badge-pill">Sistem Penunjang Keputusan</span>
+                <h1>Monte Carlo Coffee Price</h1>
+                <p>Simulasi & Prediksi Harga Produsen Kopi Robusta (Jawa Barat)</p>
+            </div>
+        </header>
+
+        <!-- INPUT SECTION -->
+        <section class="control-panel fade-in delay-1">
+            <div class="card input-card">
+                <form method="POST" id="simForm">
+                    <div class="form-grid">
+                        <!-- Pilihan Kota -->
+                        <div class="form-group">
+                            <label for="city">Wilayah Perkebunan</label>
+                            <div class="select-wrapper">
+                                <select name="city" id="city" required>
+                                    <option value="" disabled {{ 'selected' if not selected_city else '' }}>-- Pilih Kabupaten/Kota --</option>
+                                    {% for city in cities %}
+                                    <option value="{{ city }}" {{ 'selected' if city == selected_city else '' }}>{{ city }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- Pilihan Bulan -->
+                        <div class="form-group">
+                            <label for="n_pred">Horizon Prediksi (Bulan)</label>
+                            <input type="number" id="n_pred" name="n_pred" value="6" min="1" max="24" placeholder="Contoh: 6">
+                        </div>
+
+                        <!-- Tombol Aksi -->
+                        <div class="form-actions btn-group">
+                            <button type="submit" class="btn-primary">
+                                <span>Jalankan Simulasi</span>
+                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            </button>
+                            <button type="button" onclick="openModal()" class="btn-secondary">
+                                <span class="icon">?</span> Cara Baca
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <!-- Error Message -->
+                {% if error %}
+                <div class="alert-error">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <span>{{ error }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </section>
+
+        {% if stats %}
+        <!-- DASHBOARD GRID RESULTS -->
+        <div class="dashboard-grid">
+            
+            <!-- Summary KPI -->
+            <div class="card summary-card fade-in delay-2">
+                <div class="card-icon">💰</div>
+                <div class="card-data">
+                    <div class="header-with-tooltip">
+                        <h3>Estimasi Harga Rata-rata</h3>
+                        <!-- Tooltip Icon -->
+                        <span class="tooltip" data-text="Rata-rata harga dari hasil simulasi prediksi masa depan.">ⓘ</span>
+                    </div>
+                    <div class="big-number"><span class="currency">Rp</span> {{ avg }}</div>
+                    <p class="subtitle">Prediksi wajar untuk {{ sim|length }} bulan ke depan</p>
+                </div>
+            </div>
+
+            <!-- Historical Data Info -->
+            <div class="card info-card fade-in delay-2">
+                <div class="card-header">
+                    <h3>Dataset Historis Valid</h3>
+                    <span class="badge">{{ total_samples }} Sampel Data</span>
+                </div>
+                <div class="card-body">
+                    <p class="data-text">{{ raw_data_display }}</p>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="card chart-card full-width fade-in delay-3">
+                <div class="card-header">
+                    <h3>Visualisasi Trend & Distribusi</h3>
+                </div>
+                <div class="chart-flex">
+                    <div class="chart-container">
+                        <canvas id="predChart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="probChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabel Distribusi Probabilitas -->
+            <div class="card table-card fade-in delay-4">
+                <div class="card-header header-with-icon">
+                    <h3>1. Tabel Distribusi Probabilitas</h3>
+                    <button class="icon-btn" onclick="openModal()">ⓘ</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Harga Produsen</th>
+                                <th>Frekuensi <span class="tooltip" data-text="Jumlah kejadian di masa lalu">?</span></th>
+                                <th>Prob. (P)</th>
+                                <th>Kumulatif</th>
+                                <th>Interval <span class="tooltip" data-text="Rentang angka undian untuk harga ini">?</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in stats %}
+                            <tr style="--delay: {{ loop.index * 0.05 }}s">
+                                <td class="highlight">Rp {{ row.demand }}</td>
+                                <td>{{ row.freq }}</td>
+                                <td>{{ row.prob }}</td>
+                                <td>{{ row.cumulative }}</td>
+                                <td><span class="badge">{{ row.interval_min }} - {{ row.interval_max }}</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tabel Hasil Simulasi -->
+            <div class="card table-card fade-in delay-4">
+                <div class="card-header header-with-icon">
+                    <h3>2. Hasil Simulasi Prediksi</h3>
+                    <button class="icon-btn" onclick="openModal()">ⓘ</button>
+                </div>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Bulan Ke-</th>
+                                <th>Angka Acak <span class="tooltip" data-text="Simulasi ketidakpastian pasar (0-99)">?</span></th>
+                                <th>Hasil Prediksi</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in sim %}
+                            <tr style="--delay: {{ loop.index * 0.05 }}s">
+                                <td>{{ row.period }}</td>
+                                <td class="rng">{{ row.random_num }}</td>
+                                <td class="pred">Rp {{ row.prediction }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- LOGIKA JAVASCRIPT UI (Modal, Loader) -->
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    
+    <!-- LOGIKA GRAFIK CHART.JS (Memerlukan Variabel Jinja) -->
+    {% if stats %}
+    <script>
+        // Data dari Flask/Python
+        const priceLabels = [{% for row in stats %}"Rp {{ row.demand }}",{% endfor %}];
+        const probValues = [{% for row in stats %}{{ row.prob }},{% endfor %}];
+        const simPeriods = [{% for row in sim %}"Bulan {{ row.period }}",{% endfor %}];
+        const simPrices = [{% for row in sim %}{{ row.prediction }},{% endfor %}];
+
+        // Global Style Chart
+        Chart.defaults.font.family = "'Inter', sans-serif";
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.1)';
+
+        // 1. Line Chart (Prediksi Harga) - TEMA HIJAU (Uang)
+        const ctxPred = document.getElementById('predChart').getContext('2d');
+        const gradientPred = ctxPred.createLinearGradient(0, 0, 0, 300);
+        gradientPred.addColorStop(0, 'rgba(16, 185, 129, 0.4)'); // Emerald 500
+        gradientPred.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
+        new Chart(ctxPred, {
+            type: 'line',
+            data: {
+                labels: simPeriods,
+                datasets: [{
+                    label: 'Prediksi Harga',
+                    data: simPrices,
+                    backgroundColor: gradientPred,
+                    borderColor: '#10b981', // Emerald 500
+                    borderWidth: 2,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: '#10b981',
+                    pointRadius: 4,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index', intersect: false, backgroundColor: '#0f172a',
+                        callbacks: {
+                            label: function(ctx) {
+                                return ' Harga: ' + new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(ctx.parsed.y);
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: { 
+                        ticks: { callback: function(val) { return (val/1000) + 'k'; } } 
+                    }, 
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+
+        // 2. Bar Chart (Probabilitas) - TEMA BIRU
+        const ctxProb = document.getElementById('probChart').getContext('2d');
+        new Chart(ctxProb, {
+            type: 'bar',
+            data: {
+                labels: priceLabels,
+                datasets: [{
+                    label: 'Probabilitas',
+                    data: probValues,
+                    backgroundColor: '#3b82f6', // Blue 500
+                    borderRadius: 4,
+                    hoverBackgroundColor: '#60a5fa'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { 
+                    y: { display: false }, 
+                    x: { display: false } 
+                }
+            }
+        });
+    </script>
+    {% endif %}
+</body>
+</html>
