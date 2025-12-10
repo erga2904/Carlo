@@ -181,3 +181,21 @@ def index():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+    # ... (Logika di app.py) ...
+    for i in range(1, num_predictions + 1):
+        rand_num = random.randint(0, 99)  # <--- INI GENERATE BILANGAN ACAKNYA
+        
+        prediction = 0
+        for row in table_stats:
+            # Cek angka acak masuk interval mana
+            if row['interval_min'] <= rand_num <= row['interval_max']:
+                prediction = row['demand']
+                break
+        
+        # Disimpan ke list 'simulation_results' untuk dikirim ke tabel
+        simulation_results.append({
+            'period': i,
+            'random_num': rand_num,
+            'prediction': prediction
+        })
