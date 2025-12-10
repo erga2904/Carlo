@@ -35,7 +35,7 @@
             </div>
             <div class="modal-body">
                 <div class="guide-item">
-                    <h4>1. Distribusi Probabilitas</h4>
+                    <h4>1. Tabel Hitung Interval</h4>
                     <p>Menganalisis pola harga masa lalu untuk menentukan peluang di masa depan.</p>
                     <ul>
                         <li><strong>Frekuensi:</strong> Jumlah kemunculan harga tertentu dalam dataset.</li>
@@ -46,7 +46,7 @@
                 </div>
                 
                 <div class="guide-item">
-                    <h4>2. Simulasi Monte Carlo</h4>
+                    <h4>2. Tabel Generate Bilangan Acak</h4>
                     <p>Melakukan simulasi ketidakpastian pasar.</p>
                     <ul>
                         <li><strong>Angka Acak:</strong> Angka random (0-99) yang dibangkitkan sistem, mengumpamakan faktor tak terduga (cuaca, panen, permintaan).</li>
@@ -158,10 +158,11 @@
                 </div>
             </div>
 
-            <!-- Tabel Distribusi Probabilitas -->
+            <!-- TABEL 1: HITUNG INTERVAL (INI YANG ANDA CARI) -->
             <div class="card table-card fade-in delay-4">
                 <div class="card-header header-with-icon">
-                    <h3>1. Tabel Distribusi Probabilitas</h3>
+                    <!-- JUDUL SUDAH DISESUAIKAN -->
+                    <h3>1. Hitung Interval (Probabilitas)</h3>
                     <button class="icon-btn" onclick="openModal()">ⓘ</button>
                 </div>
                 <div class="table-wrapper">
@@ -172,10 +173,12 @@
                                 <th>Frekuensi <span class="tooltip" data-text="Jumlah kejadian di masa lalu">?</span></th>
                                 <th>Prob. (P)</th>
                                 <th>Kumulatif</th>
+                                <!-- Kolom Interval -->
                                 <th>Interval <span class="tooltip" data-text="Rentang angka undian untuk harga ini">?</span></th>
                             </tr>
                         </thead>
                         <tbody>
+                            <!-- LOOPING PYTHON UNTUK INTERVAL -->
                             {% for row in stats %}
                             <tr style="--delay: {{ loop.index * 0.05 }}s">
                                 <td class="highlight">Rp {{ row.demand }}</td>
@@ -190,10 +193,11 @@
                 </div>
             </div>
 
-            <!-- Tabel Hasil Simulasi -->
+            <!-- TABEL 2: GENERATE BILANGAN ACAK (INI YANG ANDA CARI) -->
             <div class="card table-card fade-in delay-4">
                 <div class="card-header header-with-icon">
-                    <h3>2. Hasil Simulasi Prediksi</h3>
+                    <!-- JUDUL SUDAH DISESUAIKAN -->
+                    <h3>2. Generate Bilangan Acak</h3>
                     <button class="icon-btn" onclick="openModal()">ⓘ</button>
                 </div>
                 <div class="table-wrapper">
@@ -201,11 +205,13 @@
                         <thead>
                             <tr>
                                 <th>Bulan Ke-</th>
+                                <!-- Kolom Bilangan Acak -->
                                 <th>Angka Acak <span class="tooltip" data-text="Simulasi ketidakpastian pasar (0-99)">?</span></th>
                                 <th>Hasil Prediksi</th>
                             </tr>
                         </thead>
                         <tbody>
+                            <!-- LOOPING PYTHON UNTUK ANGKA ACAK -->
                             {% for row in sim %}
                             <tr style="--delay: {{ loop.index * 0.05 }}s">
                                 <td>{{ row.period }}</td>
@@ -222,27 +228,24 @@
         {% endif %}
     </div>
 
-    <!-- LOGIKA JAVASCRIPT UI (Modal, Loader) -->
+    <!-- LOGIKA JAVASCRIPT UI -->
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     
-    <!-- LOGIKA GRAFIK CHART.JS (Memerlukan Variabel Jinja) -->
+    <!-- LOGIKA CHART.JS -->
     {% if stats %}
     <script>
-        // Data dari Flask/Python
-        const priceLabels = [{% for row in stats %}"Rp {{ row.demand }}",{% endfor %}];
+        const priceLabels = [{% for row in stats %}"Rp {{ row.demand }}"{% if not loop.last %},{% endif %}{% endfor %}];
         const probValues = [{% for row in stats %}{{ row.prob }},{% endfor %}];
         const simPeriods = [{% for row in sim %}"Bulan {{ row.period }}",{% endfor %}];
         const simPrices = [{% for row in sim %}{{ row.prediction }},{% endfor %}];
 
-        // Global Style Chart
         Chart.defaults.font.family = "'Inter', sans-serif";
         Chart.defaults.color = '#94a3b8';
         Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.1)';
 
-        // 1. Line Chart (Prediksi Harga) - TEMA HIJAU (Uang)
         const ctxPred = document.getElementById('predChart').getContext('2d');
         const gradientPred = ctxPred.createLinearGradient(0, 0, 0, 300);
-        gradientPred.addColorStop(0, 'rgba(16, 185, 129, 0.4)'); // Emerald 500
+        gradientPred.addColorStop(0, 'rgba(16, 185, 129, 0.4)'); 
         gradientPred.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
 
         new Chart(ctxPred, {
@@ -253,7 +256,7 @@
                     label: 'Prediksi Harga',
                     data: simPrices,
                     backgroundColor: gradientPred,
-                    borderColor: '#10b981', // Emerald 500
+                    borderColor: '#10b981',
                     borderWidth: 2,
                     pointBackgroundColor: '#fff',
                     pointBorderColor: '#10b981',
@@ -284,7 +287,6 @@
             }
         });
 
-        // 2. Bar Chart (Probabilitas) - TEMA BIRU
         const ctxProb = document.getElementById('probChart').getContext('2d');
         new Chart(ctxProb, {
             type: 'bar',
@@ -293,7 +295,7 @@
                 datasets: [{
                     label: 'Probabilitas',
                     data: probValues,
-                    backgroundColor: '#3b82f6', // Blue 500
+                    backgroundColor: '#3b82f6', 
                     borderRadius: 4,
                     hoverBackgroundColor: '#60a5fa'
                 }]
